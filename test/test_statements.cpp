@@ -1,11 +1,10 @@
-#include <gtest/gtest.h>
-#include "test_utils.h"
+#include "test_utils.hpp"
 
 TEST(test_single, node_stmt) {
-    compare("node", "node\n", parse_node_stmt);
-    compare("node [ color=red , shape=x;     loc=center size=15; ]", "node [color=red, shape=x, loc=center, size=15]\n", parse_node_stmt);
-    compare(R"(node[color = "no\tir", name = "\"Mike\"", address = "LA\nCalifornia"])",
-            "node [color=no\tir, name=\"Mike\", address=LA\nCalifornia]\n", parse_node_stmt);
+    compare("vertex", "vertex\n", parse_node_stmt);
+    compare("vertex [ color=red , shape=x;     loc=center size=15; ]", "vertex [color=red, shape=x, loc=center, size=15]\n", parse_node_stmt);
+    compare(R"(vertex[color = "no\tir", name = "\"Mike\"", address = "LA\nCalifornia"])",
+            "vertex [color=no\tir, name=\"Mike\", address=LA\nCalifornia]\n", parse_node_stmt);
 }
 
 TEST(test_single, edge_stmt) {

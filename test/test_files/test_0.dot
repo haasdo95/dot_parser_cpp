@@ -1,0 +1,17 @@
+strict graph {
+    graph [name=G, loc=top, lang=EN]
+    edge [color=noir]
+    node [size=5]
+    A; B; C[size=100, name="C"]
+    A--B--C--A;
+    subgraph not_g {
+        name=NotG;
+        graph[lang=CN]
+        D; E;
+        D--E [color="blanc"]
+        {E--C;}
+    }
+    graph[loc=bottom]
+    {edge   [color=rouge]   ;
+    F; F--{B; E}}
+}

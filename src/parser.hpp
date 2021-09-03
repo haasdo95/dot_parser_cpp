@@ -6,46 +6,28 @@
 #include <vector>
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
+#include "non_terminals.hpp"
 
-namespace dot_parser {
-    struct edge {
-        std::string src;
-        std::string edge_op;
-        std::string tgt;
-    };
-}
-
-namespace dot_parser {
+namespace dot_parser::parsing {
     namespace dsl = lexy::dsl;
     constexpr auto ws = dsl::whitespace(dsl::ascii::blank);
     constexpr auto wsr = dsl::whitespace(dsl::ascii::blank/dsl::newline);
 
     // keywords
     constexpr auto keyword_pattern = dsl::identifier(dsl::ascii::alpha);
+    constexpr auto graph_keyword = LEXY_KEYWORD("graph", keyword_pattern);
+    constexpr auto edge_keyword = LEXY_KEYWORD("edge", keyword_pattern);
+    constexpr auto node_keyword = LEXY_KEYWORD("node", keyword_pattern);
+
+    constexpr auto digraph_keyword = LEXY_KEYWORD("digraph", keyword_pattern);
+
     struct strict_keyword {
         static constexpr auto rule = dsl::capture(LEXY_LIT("strict"));
-        static constexpr auto value = lexy::as_string<std::string>;
-    };
-    struct graph_keyword {
-        static constexpr auto rule = dsl::capture(LEXY_LIT("graph"));
-        static constexpr auto value = lexy::as_string<std::string>;
-    };
-    struct digraph_keyword {
-        static constexpr auto rule = dsl::capture(LEXY_LIT("digraph"));
         static constexpr auto value = lexy::as_string<std::string>;
     };
     struct subgraph_keyword {
         static constexpr auto rule = LEXY_KEYWORD("subgraph", keyword_pattern);
     };
-    struct node_keyword {
-        static constexpr auto rule = LEXY_KEYWORD("node", keyword_pattern);
-    };
-    struct edge_keyword {
-        static constexpr auto rule = LEXY_KEYWORD("edge", keyword_pattern);
-    };
-
-    using attr_item_v = std::pair<std::string, std::string>;
-    using attr_list_type = std::vector<attr_item_v>;
 
     struct name {  // either quoted or not quoted
         static constexpr auto escaped_symbols = lexy::symbol_table<char>
@@ -69,7 +51,7 @@ namespace dot_parser {
     };
     struct attr_item {
         static constexpr auto rule = dsl::p<name>+ws+dsl::lit_c<'='>+ws+dsl::p<name>;
-        static constexpr auto value = lexy::construct<attr_item_v>;
+        static constexpr auto value = lexy::construct<detail::attr_item_v>;
     };
     // attr_stmt
     struct attr_list_non_empty {  // sep by (1) , (2) ; (3) at least one whitespace
@@ -80,52 +62,39 @@ namespace dot_parser {
                 |   (dsl::lit_c<';'> / dsl::lit_c<','>) >> ws
             ));
         }();
-        static constexpr auto value = lexy::as_list<attr_list_type>;
+        static constexpr auto value = lexy::as_list<detail::attr_list_type>;
     };
     struct attr_list {
         static constexpr auto rule = (dsl::peek(dsl::lit_c<'['>) >> dsl::p<attr_list_non_empty>)
                                    | (dsl::else_ >> dsl::nullopt);
-        static constexpr auto value = lexy::callback<attr_list_type>(
-                        [](const attr_list_type& v) { return v; },
-                        [](lexy::nullopt null_val) { return attr_list_type{}; }
+        static constexpr auto value = lexy::callback<detail::attr_list_type>(
+                        [](const detail::attr_list_type& v) { return v; },
+                        [](lexy::nullopt null_val) { return detail::attr_list_type{}; }
                 );
     };
     // three leading keywords: graph, edge, node
-    struct attr_stmt_v {
-        std::string type;
-        attr_list_type attrs;
-    };
     struct attr_graph_stmt {
-        static constexpr auto rule = dsl::token(graph_keyword::rule) >> (ws+dsl::p<attr_list>);
-        static constexpr auto value = lexy::callback<attr_stmt_v>(
-            [](const attr_list_type& v) { return attr_stmt_v{"graph", v}; }
+        static constexpr auto rule = graph_keyword >> (ws+dsl::p<attr_list>);
+        static constexpr auto value = lexy::callback<detail::attr_stmt_v>(
+            [](const detail::attr_list_type& v) { return detail::attr_stmt_v{"graph", v}; }
         );
     };
     struct attr_edge_stmt {
-        static constexpr auto rule = dsl::token(edge_keyword::rule) >> (ws+dsl::p<attr_list>);
-        static constexpr auto value = lexy::callback<attr_stmt_v>(
-            [](const attr_list_type& v) { return attr_stmt_v{"edge", v}; }
+        static constexpr auto rule = edge_keyword >> (ws+dsl::p<attr_list>);
+        static constexpr auto value = lexy::callback<detail::attr_stmt_v>(
+            [](const detail::attr_list_type& v) { return detail::attr_stmt_v{"edge", v}; }
         );
     };
     struct attr_node_stmt {
-        static constexpr auto rule = dsl::token(node_keyword::rule) >> (ws+dsl::p<attr_list>);
-        static constexpr auto value = lexy::callback<attr_stmt_v>(
-            [](const attr_list_type& v) { return attr_stmt_v{"node", v}; }
+        static constexpr auto rule = node_keyword >> (ws+dsl::p<attr_list>);
+        static constexpr auto value = lexy::callback<detail::attr_stmt_v>(
+            [](const detail::attr_list_type& v) { return detail::attr_stmt_v{"node", v}; }
         );
     };
 
     struct attr_stmt {
-        static constexpr auto rule =[] {
-            return dsl::p<attr_graph_stmt> | dsl::p<attr_edge_stmt> | dsl::p<attr_node_stmt>;
-        }();
-        static constexpr auto value = lexy::forward<attr_stmt_v>;
-    };
-
-    struct attr_stmt_vs_item_branch {  // both contain "=", need to tell apart
-        static constexpr auto rule = dsl::lookahead(dsl::lit_c<'='>, dsl::lit_c<';'> / dsl::newline) >>
-                ((dsl::lookahead(dsl::lit_c<'['>, dsl::lit_c<'='>) >> dsl::p<attr_stmt>)
-            |   dsl::else_ >> dsl::p<attr_item>);
-        static constexpr auto value = lexy::construct<std::variant<attr_stmt_v, attr_item_v>>;
+        static constexpr auto rule = dsl::p<attr_graph_stmt> | dsl::p<attr_edge_stmt> | dsl::p<attr_node_stmt>;
+        static constexpr auto value = lexy::forward<detail::attr_stmt_v>;
     };
     // END OF attr_stmt
 
@@ -139,15 +108,20 @@ namespace dot_parser {
         static constexpr auto value = lexy::as_string<std::string>;
     };
 
-    struct node_stmt_v {
-        std::string node_name;
-        attr_list_type attrs;
-    };
     struct node_stmt {
         static constexpr auto rule = dsl::p<node> + ws + dsl::p<attr_list>;
-        static constexpr auto value = lexy::construct<node_stmt_v>;
+        static constexpr auto value = lexy::construct<detail::node_stmt_v>;
     };
     // END OF node_stmt
+
+    struct attr_stmt_vs_item_vs_node_branch {  // all contain "=", need to tell apart
+        static constexpr auto rule = dsl::lookahead(dsl::lit_c<'='>, dsl::lit_c<';'> / dsl::newline) >>
+                ((dsl::lookahead(dsl::lit_c<'['>, dsl::lit_c<'='>) >>
+                        ((dsl::peek(graph_keyword/edge_keyword/node_keyword) >> dsl::p<attr_stmt>)
+                    |   dsl::else_ >> dsl::p<node_stmt>))
+                |   dsl::else_ >> dsl::p<attr_item>);
+        static constexpr auto value = lexy::construct<std::variant<detail::attr_stmt_v, detail::node_stmt_v, detail::attr_item_v>>;
+    };
 
     // edge_stmt
     struct node_group {  // {node_1, node_2, node_3}
@@ -186,15 +160,10 @@ namespace dot_parser {
         static constexpr auto value = lexy::as_list<std::vector<nodes_type>>;
     };
 
-    struct edge_stmt_v {
-        std::vector<edge> edges;
-        attr_list_type attrs;
-    };
-
     struct edge_stmt {  // node_1 -> node_2 [type=int]
         static constexpr auto rule = dsl::p<edge_head> + dsl::p<edge_tail> + dsl::p<attr_list>;
-        static constexpr auto value = lexy::callback<edge_stmt_v>(
-                [](const std::pair<nodes_type, std::string>& head_pair, const std::vector<nodes_type>& tail_vec, const attr_list_type& edge_attrs){
+        static constexpr auto value = lexy::callback<detail::edge_stmt_v>(
+                [](const std::pair<nodes_type, std::string>& head_pair, const std::vector<nodes_type>& tail_vec, const detail::attr_list_type& edge_attrs){
                     std::vector<edge> result;
                     auto src_nodes = head_pair.first;
                     auto& edge_op = head_pair.second;
@@ -206,30 +175,14 @@ namespace dot_parser {
                         }
                         src_nodes = tgt_nodes;
                     }
-                    return edge_stmt_v{std::move(result), edge_attrs};
+                    return detail::edge_stmt_v{std::move(result), edge_attrs};
                 });
     };
     struct edge_stmt_branch {
         static constexpr auto rule = dsl::lookahead(LEXY_LIT("--") / LEXY_LIT("->"), dsl::lit_c<';'> / dsl::newline) >> dsl::p<edge_stmt>;
-        static constexpr auto value = lexy::forward<edge_stmt_v>;
+        static constexpr auto value = lexy::forward<detail::edge_stmt_v>;
     };
     // END OF edge_stmt
-
-    struct stmt_v {
-        std::string name;
-        std::variant<node_stmt_v, edge_stmt_v, attr_stmt_v, attr_item_v, std::vector<stmt_v>> val;
-        stmt_v(const node_stmt_v& v): val{v} {};
-        stmt_v(const edge_stmt_v& v): val{v} {};
-        stmt_v(const std::variant<attr_stmt_v, attr_item_v>& v) {
-            if (std::holds_alternative<attr_stmt_v>(v)) {
-                val = std::get<attr_stmt_v>(v);
-            } else {
-                val = std::get<attr_item_v>(v);
-            }
-        };
-        stmt_v(const std::vector<stmt_v>& v): val{v} {};
-        stmt_v(std::string name, const std::vector<stmt_v>& v): name{std::move(name)}, val{v} {}
-    };
 
     struct statement_list {
         static constexpr auto rule = []{
@@ -239,40 +192,37 @@ namespace dot_parser {
                         |   dsl::else_ >> dsl::p<name> + ws + dsl::recurse<statement_list>)  // for named subG
                     | dsl::peek(dsl::lit_c<'{'>) >> ws + dsl::recurse<statement_list>  // for unnamed subgraph
                     | dsl::p<edge_stmt_branch>
-                    | dsl::p<attr_stmt_vs_item_branch>
+                    | dsl::p<attr_stmt_vs_item_vs_node_branch>
                     | dsl::else_ >> dsl::p<node_stmt>;
             constexpr auto bracket = dsl::brackets(dsl::lit_c<'{'> >> wsr, dsl::lit_c<'}'>);
             return bracket.list(ws+stmt+ws, dsl::trailing_sep((dsl::lit_c<';'>/dsl::newline) >> wsr));
         }();
-        static constexpr auto value = lexy::as_list<std::vector<stmt_v>>;
+        static constexpr auto value = lexy::as_list<std::vector<detail::stmt_v>>;
     };
 
-    struct dot_graph_v {
-        bool is_strict;
-        std::string graph_type;
-        std::string name;
-        std::vector<stmt_v> statements;
+    struct g_keyword {
+        static constexpr auto rule = dsl::capture(graph_keyword/digraph_keyword);
+        static constexpr auto value = lexy::as_string<std::string>;
     };
 
     // top level
     struct dot_graph {
         static constexpr auto rule = []{
-            constexpr auto g_keyword = dsl::p<graph_keyword> | dsl::p<digraph_keyword>;
             constexpr auto start = wsr +
-                    ((dsl::p<strict_keyword> >> (wsr + g_keyword))
-                |   (dsl::else_ >> (dsl::nullopt + g_keyword)))
+                    ((dsl::p<strict_keyword> >> (wsr + dsl::p<g_keyword>))
+                |   (dsl::else_ >> (dsl::nullopt + dsl::p<g_keyword>)))
                 + wsr;
             return start + (
                         dsl::peek(dsl::lit_c<'{'>) >> dsl::nullopt + dsl::p<statement_list>
                     |   dsl::else_ >> dsl::p<name> + wsr + dsl::p<statement_list>  // named graph
                     );
         }();
-        static constexpr auto value = lexy::callback<dot_graph_v>(
+        static constexpr auto value = lexy::callback<dot_graph_raw>(
             [](const std::optional<std::string>& strict,
-                const std::string& gtype,
+                const std::string & gtype,
                 const std::optional<std::string>& gname,
-                const std::vector<stmt_v>& stmts) {
-                return dot_graph_v{ .is_strict=strict.has_value(),
+                const std::vector<detail::stmt_v>& stmts) {
+                return dot_graph_raw{ .is_strict=strict.has_value(),
                                     .graph_type=gtype,
                                     .name=gname.value_or(""),
                                     .statements=stmts };
@@ -280,6 +230,12 @@ namespace dot_parser {
         );
     };
 
+}
+
+// parsing API
+namespace dot_parser {
+    dot_graph_raw parse(const std::string& input);
+    dot_graph_raw parse_file(const std::string& path);
 }
 
 #endif //DOT_PARSER_PARSER_HPP
