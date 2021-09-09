@@ -10,8 +10,11 @@
 
 namespace dot_parser::parsing {
     namespace dsl = lexy::dsl;
-    constexpr auto ws = dsl::whitespace(dsl::ascii::blank);
-    constexpr auto wsr = dsl::whitespace(dsl::ascii::blank/dsl::newline);
+    constexpr auto multi_line_comment = dsl::delimited(LEXY_LIT("/*"), LEXY_LIT("*/")).operator()(dsl::ascii::character);
+    constexpr auto enclosed_comment = dsl::delimited(LEXY_LIT("/*"), LEXY_LIT("*/")).operator()(dsl::ascii::character-dsl::ascii::newline);
+    constexpr auto ws = dsl::whitespace(dsl::ascii::blank | enclosed_comment);  // no line-break in ws; secures look-ahead
+    constexpr auto line_comment = LEXY_LIT("//") >> dsl::while_(dsl::ascii::character - dsl::ascii::newline);
+    constexpr auto wsr = dsl::whitespace((dsl::ascii::blank/dsl::newline) | multi_line_comment | line_comment);
 
     // keywords
     constexpr auto keyword_pattern = dsl::identifier(dsl::ascii::alpha);
@@ -25,9 +28,7 @@ namespace dot_parser::parsing {
         static constexpr auto rule = dsl::capture(LEXY_LIT("strict"));
         static constexpr auto value = lexy::as_string<std::string>;
     };
-    struct subgraph_keyword {
-        static constexpr auto rule = LEXY_KEYWORD("subgraph", keyword_pattern);
-    };
+    constexpr auto subgraph_keyword = LEXY_KEYWORD("subgraph", keyword_pattern);
 
     struct name {  // either quoted or not quoted
         static constexpr auto escaped_symbols = lexy::symbol_table<char>
@@ -42,7 +43,12 @@ namespace dot_parser::parsing {
         static constexpr auto rule = [] {
             constexpr auto quoted_r = dsl::ascii::character - dsl::ascii::control;
             auto escape = dsl::backslash_escape.symbol<escaped_symbols>();
-            constexpr auto r = dsl::while_one(dsl::ascii::alnum / dsl::lit_c<'_'> / dsl::lit_c<'.'> / dsl::lit_c<'<'> / dsl::lit_c<'>'>);
+            constexpr auto r = dsl::while_one(dsl::ascii::alpha_digit_underscore
+                    / dsl::lit_c<'+'> / dsl::lit_c<'-'> / dsl::lit_c<'*'>
+                    / dsl::lit_c<'.'> / dsl::lit_c<':'> / dsl::lit_c<'!'> / dsl::lit_c<'?'>
+                    / dsl::lit_c<'$'> / dsl::lit_c<'%'> / dsl::lit_c<'&'> / dsl::lit_c<'@'>
+                    / dsl::lit_c<'('> / dsl::lit_c<')'> / dsl::lit_c<'<'> / dsl::lit_c<'>'>
+                    / dsl::lit_c<'\''> / dsl::lit_c<'`'> / dsl::lit_c<'|'> / dsl::lit_c<'^'> / dsl::lit_c<'~'> / dsl::lit_c<'\\'>);
             return
                     (dsl::peek(dsl::lit_c<'"'>) >> dsl::quoted(quoted_r, escape))
                 |   (dsl::else_ >> dsl::capture(r));
@@ -58,7 +64,8 @@ namespace dot_parser::parsing {
         static constexpr auto rule = []{
             constexpr auto bracket = dsl::brackets(dsl::lit_c<'['> >> ws, dsl::lit_c<']'>);
             return bracket.list(dsl::p<attr_item>, dsl::trailing_sep(
-                    dsl::peek(dsl::ascii::blank) >> (ws+(dsl::lit_c<';'>/dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)  // allow blank before ; or ,
+                    // allow blank or in-line comments before ; or ,
+                    dsl::peek(dsl::ascii::blank / LEXY_LIT("/*")) >> (ws+(dsl::lit_c<';'>/dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)
                 |   (dsl::lit_c<';'> / dsl::lit_c<','>) >> ws
             ));
         }();
@@ -102,7 +109,7 @@ namespace dot_parser::parsing {
     struct node {
         static constexpr auto rule = [] {
             auto lead_char     = dsl::ascii::alpha;
-            auto trailing_char = dsl::ascii::alnum / dsl::lit_c<'_'>;
+            auto trailing_char = dsl::ascii::alpha_digit_underscore;
             return dsl::identifier(lead_char, trailing_char);
         }();
         static constexpr auto value = lexy::as_string<std::string>;
@@ -128,7 +135,8 @@ namespace dot_parser::parsing {
         static constexpr auto rule = []{
             constexpr auto bracket = dsl::brackets(dsl::lit_c<'{'> >> ws, dsl::lit_c<'}'>);
             return bracket.list(dsl::p<node>, dsl::trailing_sep(
-                    dsl::peek(dsl::ascii::blank) >> (ws+(dsl::lit_c<';'>/dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)  // allow blank before ; or ,
+                    // allow blank or in-line comments before ; or ,
+                    dsl::peek(dsl::ascii::blank / LEXY_LIT("/*")) >> (ws+(dsl::lit_c<';'>/dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)
                 |   (dsl::lit_c<';'> / dsl::lit_c<','>) >> ws
             ));
         }();
@@ -187,15 +195,19 @@ namespace dot_parser::parsing {
     struct statement_list {
         static constexpr auto rule = []{
             constexpr auto stmt =
-                    dsl::token(subgraph_keyword::rule) >> ws +
-                            (dsl::peek(dsl::lit_c<'{'>) >> dsl::recurse<statement_list>  // for unnamed subgraph
-                        |   dsl::else_ >> dsl::p<name> + ws + dsl::recurse<statement_list>)  // for named subG
-                    | dsl::peek(dsl::lit_c<'{'>) >> ws + dsl::recurse<statement_list>  // for unnamed subgraph
+                    subgraph_keyword >> wsr +
+                            (dsl::peek(dsl::lit_c<'{'>) >> dsl::recurse<statement_list>  // for unnamed subgraph: subgraph {...}
+                        |   dsl::else_ >> dsl::p<name> + wsr + dsl::recurse<statement_list>)  // for named sub: subgraph sub_g {...}
+                    | dsl::peek(dsl::lit_c<'{'>) >> wsr + dsl::recurse<statement_list>  // for unnamed subgraph: {...}
                     | dsl::p<edge_stmt_branch>
                     | dsl::p<attr_stmt_vs_item_vs_node_branch>
+                    | line_comment
                     | dsl::else_ >> dsl::p<node_stmt>;
             constexpr auto bracket = dsl::brackets(dsl::lit_c<'{'> >> wsr, dsl::lit_c<'}'>);
-            return bracket.list(ws+stmt+ws, dsl::trailing_sep((dsl::lit_c<';'>/dsl::newline) >> wsr));
+            return bracket.list(ws+stmt+ws, dsl::trailing_sep(
+                        ((dsl::lit_c<';'>/dsl::newline)
+                    |   line_comment) >> wsr
+                   ));
         }();
         static constexpr auto value = lexy::as_list<std::vector<detail::stmt_v>>;
     };

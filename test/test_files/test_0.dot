@@ -1,17 +1,38 @@
-strict graph {
-    graph [name=G, loc=top, lang=EN]
-    edge [color=noir]
+
+// test_0
+
+/*
+    undirected and strict
+*/
+
+strict /* it's undirected and it's strict */ graph {  // did I say it's undirected and strict?
+
+    graph [name = G   , loc=top     /*some sneaky comments*/   , lang=/*well this is kinda silly*/EN]
+    edge [color=noir]  // noir is black
     node [size=5]
     A; B; C[size=100, name="C"]
+    // a lil triangle
     A--B--C--A;
+    // a subgraph with name not_g
     subgraph not_g {
         name=NotG;
         graph[lang=CN]
+        /*
+            multi-line comments are allowed
+            only if they don't share lines with actual meaningful statements
+        */
         D; E;
-        D--E [color="blanc"]
+
+        D--E /* blanc means white */ [color="blanc"]
         {E--C;}
     }
     graph[loc=bottom]
+
     {edge   [color=rouge]   ;
-    F; F--{B; E}}
+    F; F--{B;  E}}
 }
+
+// any finishing words?
+/* anyone? */
+
+
