@@ -101,11 +101,11 @@ namespace dot_parser {
 
     namespace detail {
         void flatten_impl(const dot_graph_resolved& resolved_graph, std::vector<flat_stmt_type>& statements) {
-            std::cout << "graph attributes of (sub)graph";
+            std::cerr << "graph attributes of (sub)graph";
             if (!resolved_graph.name.empty()) {
-                std::cout << " with name " << resolved_graph.name;
+                std::cerr << " with name " << resolved_graph.name;
             }
-            std::cout << " discarded due to flattening\n";
+            std::cerr << " discarded due to flattening\n";
             for (const auto& stmt: resolved_graph.statements) {
                 if (std::holds_alternative<detail::node_stmt_v>(stmt)) {
                     const auto& v = std::get<detail::node_stmt_v>(stmt);
