@@ -44,7 +44,7 @@ namespace dot_parser::parsing {
             constexpr auto quoted_r = dsl::ascii::character - dsl::ascii::control;
             auto escape = dsl::backslash_escape.symbol<escaped_symbols>();
             constexpr auto r = dsl::while_one(dsl::ascii::alpha_digit_underscore
-                    / dsl::lit_c<'+'> / dsl::lit_c<'-'> / dsl::lit_c<'*'>
+                    / dsl::lit_c<'+'> / dsl::lit_c<'*'>
                     / dsl::lit_c<'.'> / dsl::lit_c<':'> / dsl::lit_c<'!'> / dsl::lit_c<'?'>
                     / dsl::lit_c<'$'> / dsl::lit_c<'%'> / dsl::lit_c<'&'> / dsl::lit_c<'@'>
                     / dsl::lit_c<'('> / dsl::lit_c<')'> / dsl::lit_c<'<'> / dsl::lit_c<'>'>
@@ -106,17 +106,8 @@ namespace dot_parser::parsing {
     // END OF attr_stmt
 
     // node_stmt; not a branch, needs to be put after else_
-    struct node {
-        static constexpr auto rule = [] {
-            auto lead_char     = dsl::ascii::alpha;
-            auto trailing_char = dsl::ascii::alpha_digit_underscore;
-            return dsl::identifier(lead_char, trailing_char);
-        }();
-        static constexpr auto value = lexy::as_string<std::string>;
-    };
-
     struct node_stmt {
-        static constexpr auto rule = dsl::p<node> + ws + dsl::p<attr_list>;
+        static constexpr auto rule = dsl::p<name> + ws + dsl::p<attr_list>;
         static constexpr auto value = lexy::construct<detail::node_stmt_v>;
     };
     // END OF node_stmt
@@ -134,7 +125,7 @@ namespace dot_parser::parsing {
     struct node_group {  // {node_1, node_2, node_3}
         static constexpr auto rule = []{
             constexpr auto bracket = dsl::brackets(dsl::lit_c<'{'> >> ws, dsl::lit_c<'}'>);
-            return bracket.list(dsl::p<node>, dsl::trailing_sep(
+            return bracket.list(dsl::p<name>, dsl::trailing_sep(
                     // allow blank or in-line comments before ; or ,
                     dsl::peek(dsl::ascii::blank / LEXY_LIT("/*")) >> (ws+(dsl::lit_c<';'>/dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)
                 |   (dsl::lit_c<';'> / dsl::lit_c<','>) >> ws
@@ -146,7 +137,7 @@ namespace dot_parser::parsing {
     using nodes_type = std::vector<std::string>;
     struct node_or_node_group {
         static constexpr auto rule = (dsl::peek(dsl::lit_c<'{'>) >> dsl::p<node_group>)
-                                   | (dsl::else_ >> dsl::p<node>);
+                                   | (dsl::else_ >> dsl::p<name>);
         static constexpr auto value = lexy::callback<nodes_type>(
                     [](const std::string& node) { return nodes_type{node}; },
                     [](const nodes_type& group) { return group; }
@@ -225,7 +216,7 @@ namespace dot_parser::parsing {
                 |   (dsl::else_ >> (dsl::nullopt + dsl::p<g_keyword>)))
                 + wsr;
             return start + (
-                        dsl::peek(dsl::lit_c<'{'>) >> dsl::nullopt + dsl::p<statement_list>
+                        dsl::peek(dsl::lit_c<'{'>) >> dsl::nullopt + wsr + dsl::p<statement_list>
                     |   dsl::else_ >> dsl::p<name> + wsr + dsl::p<statement_list>  // named graph
                     );
         }();
