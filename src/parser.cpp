@@ -33,7 +33,7 @@ namespace dot_parser {
         }
 
         auto res = lexy::parse<parsing::dot_graph>(file.buffer(), lexy_ext::report_error);
-        if (!res.has_value()) {
+        if (res.error_count()) {
             throw std::runtime_error("parsing failed");
         }
         return res.value();
