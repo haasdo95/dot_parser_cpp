@@ -38,13 +38,13 @@ TEST(resolver, test_0) {
 
 TEST(resolver, test_except) {
     std::string dup_node_def_0 = "digraph {A; A;}";
-    std::string dup_node_def_1 = "digraph {A; B; {A;}}";
+    std::string dup_node_def_1 = "digraph {A; B; subgraph{A;}}";
     std::string undefined_node_0 = "graph {A; A--B}";
-    std::string undefined_node_1 = "strict graph {A; {A--B}}";
+    std::string undefined_node_1 = "strict graph {A; subgraph{A--B}}";
     std::string wrong_graph_type_0 = "graph {A; B; A->B}";
     std::string wrong_graph_type_1 = "digraph {A; B; A--B}";
     std::string strictness_0 = "strict graph {A; B; A--B; A--B}";
-    std::string strictness_1 = "strict digraph {A; B; A->{B, B}}";
+    std::string strictness_1 = "strict digraph {A; B; {A A}->{B, B}}";
     std::vector<std::string> should_throw = {
             dup_node_def_0, dup_node_def_1,
             undefined_node_0, undefined_node_1,

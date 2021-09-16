@@ -8,6 +8,7 @@ Requires C++ 17.
 
 These nonconformities mostly stem from the limitation of the lookahead functionality of the parser (and ofc my laziness).
 ### syntax
+- subgraphs must be declared with the `subgraph` keyword
 - non-subgraph statements listed in `graph`/`subgraph` must be separated by semicolons, newlines, or both
 - each non-subgraph statement in `graph`/`subgraph` can take up **at most** one line, which means multi-line strings are not supported; subgraph statements can take multiple line with no problem
 - multi-line comments must not share lines with actual statements, for example

@@ -189,8 +189,7 @@ namespace dot_parser::parsing {
                     subgraph_keyword >> wsr +
                             (dsl::peek(dsl::lit_c<'{'>) >> dsl::recurse<statement_list>  // for unnamed subgraph: subgraph {...}
                         |   dsl::else_ >> dsl::p<name> + wsr + dsl::recurse<statement_list>)  // for named sub: subgraph sub_g {...}
-                    | dsl::peek(dsl::lit_c<'{'>) >> wsr + dsl::recurse<statement_list>  // for unnamed subgraph: {...}
-                    | dsl::p<edge_stmt_branch>
+                    | dsl::p<edge_stmt_branch>  // edge stmt may also start by '{', which is why we must disallow subgraph without keyword
                     | dsl::p<attr_stmt_vs_item_vs_node_branch>
                     | line_comment
                     | dsl::else_ >> dsl::p<node_stmt>;

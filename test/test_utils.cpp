@@ -95,6 +95,7 @@ void parse_stmt_impl(std::ostream& os, const std::vector<dot_parser::detail::stm
             auto v = std::get<dot_parser::detail::attr_item_v>(r.val);
             parse_item_stmt_impl(os, v);
         } else {  // subgraph
+            os << "subgraph ";
             if (!r.name.empty()) {
                 os << r.name << " ";
             }

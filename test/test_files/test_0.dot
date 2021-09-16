@@ -24,11 +24,11 @@ strict /* it's undirected and it's strict */ graph {  // did I say it's undirect
         D; E;
 
         D--E /* blanc means white */ [color="blanc"]
-        {E--C;}
+        subgraph {E--C;}
     }
     graph[loc=bottom]
 
-    {edge   [color=rouge]   ;
+    subgraph{edge   [color=rouge]   ;
     F; F--{B;  E}}
 }
 

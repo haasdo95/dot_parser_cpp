@@ -3,3 +3,5 @@ cmake-build-*
 # ignore all files but keep the directory
 test/bin/*
 !test/bin/.keep
+
+Testing
