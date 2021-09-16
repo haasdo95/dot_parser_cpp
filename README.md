@@ -29,11 +29,11 @@ graph {
          */
 }
 ```
-- subgraph in edge statements not fully supported; currently we only support node lists in edge statements. For example, the following can be successfully parsed
+- subgraph in edge statements not fully supported; for now we only support node lists (separated by whitespace or comma) in edge statements. For example, the following can be successfully parsed
 ```dot
 digraph {
     A; B; C; D; E; F; G; H
-    A -> {B, C} -> {D E} -> {F; G} -> {H}
+    {A B, C} -> {D E} -> {F, G} -> {H}
 }
 ```
 

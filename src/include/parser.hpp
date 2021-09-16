@@ -127,8 +127,8 @@ namespace dot_parser::parsing {
             constexpr auto bracket = dsl::brackets(dsl::lit_c<'{'> >> ws, dsl::lit_c<'}'>);
             return bracket.list(dsl::p<name>, dsl::trailing_sep(
                     // allow blank or in-line comments before ; or ,
-                    dsl::peek(dsl::ascii::blank / LEXY_LIT("/*")) >> (ws+(dsl::lit_c<';'>/dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)
-                |   (dsl::lit_c<';'> / dsl::lit_c<','>) >> ws
+                    dsl::peek(dsl::ascii::blank / LEXY_LIT("/*")) >> (ws+(dsl::lit_c<','>/dsl::token(dsl::nullopt))+ws)
+                |   (dsl::lit_c<','>) >> ws
             ));
         }();
         static constexpr auto value = lexy::as_list<std::vector<std::string>>;

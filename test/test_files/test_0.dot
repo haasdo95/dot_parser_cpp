@@ -29,7 +29,7 @@ strict /* it's undirected and it's strict */ graph {  // did I say it's undirect
     graph[loc=bottom]
 
     subgraph{edge   [color=rouge]   ;
-    F; F--{B;  E}}
+    F; F--{B , E}}
 }
 
 // any finishing words?
