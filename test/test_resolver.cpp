@@ -1,6 +1,30 @@
 #include "test_utils.hpp"
 
 TEST(resolver, test_0) {
+    std::string inp_small = "graph Students { // no graph prop at all\n"
+                      "    node [gender=male, age=21]\n"
+                      "    Jack[age=19]  // this overrides the default age=21\n"
+                      "    Bob\n"
+                      "    node [gender=female, age=21]  // overrides the previous default gender=male\n"
+                      "    Alice; Jessica\n"
+                      "    edge [status=\"friendzoned\"]\n"
+                      "    Alice--Jack; Jack--Bob[status=\"BFF\"]\n"
+                      "}";
+    auto raw_small = dot_parser::parse(inp_small);
+    auto resolved_small = dot_parser::resolve(raw_small);
+    std::stringstream ss_small;
+    parse_resolved_impl(ss_small, resolved_small, 0);
+    std::string sol_small = "Students {\n"
+                            "\t[]\n"
+                            "\tJack [age=19, gender=male]\n"
+                            "\tBob [age=21, gender=male]\n"
+                            "\tAlice [age=21, gender=female]\n"
+                            "\tJessica [age=21, gender=female]\n"
+                            "\tAlice--Jack [status=friendzoned]\n"
+                            "\tJack--Bob [status=BFF]\n"
+                            "}\n";
+    ASSERT_EQ(sol_small, ss_small.str());
+
     auto raw_graph = dot_parser::parse_file("../test_files/test_0.dot");
     std::string sol_0 = "{\n"
                     "\t[lang=EN, loc=bottom, name=G]\n"
