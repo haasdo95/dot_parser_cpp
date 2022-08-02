@@ -2,6 +2,7 @@
 #define DOT_PARSER_PARSER_HPP
 
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
