@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <stdexcept>
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 #include "non_terminals.hpp"
@@ -14,7 +15,7 @@ namespace dot_parser::parsing {
     constexpr auto enclosed_comment = dsl::delimited(LEXY_LIT("/*"), LEXY_LIT("*/")).operator()(dsl::ascii::character-dsl::ascii::newline);
     constexpr auto ws = dsl::whitespace(dsl::ascii::blank | enclosed_comment);  // no line-break in ws; secures look-ahead
     constexpr auto line_comment = LEXY_LIT("//") >> dsl::while_(dsl::ascii::character - dsl::ascii::newline);
-    constexpr auto wsr = dsl::whitespace((dsl::ascii::blank/dsl::newline) | multi_line_comment | line_comment);
+    constexpr auto wsr = dsl::whitespace((dsl::ascii::blank/dsl::ascii::newline) | multi_line_comment | line_comment);
 
     // keywords
     constexpr auto keyword_pattern = dsl::identifier(dsl::ascii::alpha);
