@@ -6,7 +6,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <stdexcept>
 #include <lexy/callback.hpp>
 #include <lexy/dsl.hpp>
 #include "non_terminals.hpp"
